@@ -70,3 +70,14 @@ ci_eval:
 	gitlab-runner exec shell $(RUNNER_FLAGS) check_cache
 	gitlab-runner exec shell $(RUNNER_FLAGS) shell-example-verilator
 
+# ################################################
+# # Docker setup
+# ################################################
+# docker-image: ## Shortcut to build the Docker image
+# 	@$(MAKE) -C docker docker-image
+
+# docker-run: ## Shortcut to run the Docker container
+# 	@$(MAKE) -C docker docker-run
+
+# docker-rebuild: ## Shortcut to rebuild the Docker image without cache
+# 	@$(MAKE) -C docker docker-rebuild

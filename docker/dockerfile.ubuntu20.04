@@ -1,0 +1,88 @@
+# Base image
+FROM ubuntu:20.04
+
+# Set non-interactive mode
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install dependencies (including those required by Vivado)
+RUN apt-get update && apt-get install -y \
+    apt-utils tzdata git vim gettext-base uuid-dev default-jre \
+    bash autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev gawk \
+    build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev \
+    wget byacc device-tree-compiler python gtkwave python-yaml pkg-config swig python3-dev pip \
+    virtualenv help2man tcl8.6-dev libreadline-dev libffi-dev \
+    software-properties-common lsb-release gcc-10 g++-10 \
+    libtinfo5 libncurses5 # Needed for Vivado
+
+# Set default GCC version
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 100
+
+# Ensure python is correctly set
+RUN apt-get install -y python-is-python3
+RUN ln -nsf /usr/bin/tclsh8.6 /usr/bin/tclsh
+
+# Update CMake
+RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - > /etc/apt/trusted.gpg.d/kitware.gpg
+RUN apt-add-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" \
+    && apt-get update && apt-get install -y cmake
+
+# Install locales package and generate en_US.UTF-8
+RUN apt-get update && apt-get install -y locales && \
+    echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && \
+    locale-gen en_US.UTF-8 && \
+    update-locale LANG=en_US.UTF-8
+
+# Install GUI dependencies for Vivado
+RUN apt-get update && apt-get install -y \
+    x11-apps \
+    libxrender1 \
+    libxtst6 \
+    libxi6 \
+    libgl1-mesa-glx \
+    libgtk-3-0
+
+# Set default environment variables
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+
+
+# Clean package cache
+RUN apt-get clean
+
+# Install Python packages
+RUN pip install orderedmultidict
+
+# Arguments for user setup
+ARG USER_ID
+ARG GROUP_ID
+
+# Create user and group
+RUN getent group $GROUP_ID || groupadd --gid $GROUP_ID build
+RUN useradd --no-log-init --uid $USER_ID --gid $GROUP_ID --shell /bin/bash --create-home build
+
+# Switch to the build user
+USER build
+WORKDIR /home/build/zynq-parrot
+
+# =============================
+# Configure Vivado Environment
+# =============================
+
+# Define the Vivado installation path
+ENV XILINX_VIVADO=/tools/Xilinx/Vivado/2022.1
+ENV PATH=$XILINX_VIVADO/bin:$PATH
+ENV LD_LIBRARY_PATH=$XILINX_VIVADO/lib/lnx64.o:$LD_LIBRARY_PATH
+
+# Automatically source Vivado setup
+# RUN echo "source $XILINX_VIVADO/settings64.sh" >> ~/.bashrc
+
+# Label the maintainer
+LABEL maintainer="Peter Lee <wonjongbot@gmail.com>"
+
+# Start the container with bash
+ENTRYPOINT ["/bin/bash"]
+
+# RUN if [ -f /tools/Xilinx/Vivado/2022.1/settings64.sh ]; then \
+#       echo "source /tools/Xilinx/Vivado/2022.1/settings64.sh" >> /home/build/.bashrc; \
+#     fi
